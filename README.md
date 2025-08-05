@@ -1,14 +1,29 @@
-# Project
+```
+  ___       _                        __  __         __  __            
+ |_ _|_ __ | |_ _   _ _ __   ___     |  \/  |_   _  |  \/  | __ _  ___ 
+  | || '_ \| __| | | | '_ \ / _ \    | |\/| | | | | | |\/| |/ _` |/ __|
+  | || | | | |_| |_| | | | |  __/    | |  | | |_| | | |  | | (_| | (__ 
+ |___|_| |_|\__|\__,_|_| |_|\___|    |_|  |_|\__, | |_|  |_|\__,_|\___|
+                                             |___/                     
+```
 
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
+## 🚀 Automation for Intune + macOS Proof of Concept
 
-As the maintainer of this project, please make a few updates:
+**Intune My Mac** is a comprehensive automation project designed to streamline your Microsoft Intune environment setup for macOS proof of concept deployments. Built with ❤️ by the **Intune Customer Experience Engineering team**.
 
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
+### 🎯 What This Project Does
+
+This automation toolkit helps you:
+- **Rapidly configure** your Intune environment for macOS device management
+- **Streamline POC setup** with pre-configured policies and profiles
+- **Reduce deployment time** from days to hours
+- **Follow best practices** established by Microsoft's Intune engineering team
+
+### 🛠️ Built For IT Professionals
+
+Whether you're a seasoned IT administrator or just getting started with Intune, this project provides the building blocks to demonstrate the power of Microsoft Intune for macOS device management.
+
+---
 
 ## Contributing
 
