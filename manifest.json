@@ -1,0 +1,51 @@
+{
+    "manifest": {
+        "metadata": {
+            "title": "Intune macOS Configuration Policies",
+            "description": "Collection of Microsoft Intune configuration policies for macOS device management",
+            "version": "1.0",
+            "lastUpdated": "2025-08-07"
+        },
+        "policies": {
+            "policy": [
+                {
+                    "name": "Platform SSO",
+                    "description": "Configures Platform Single Sign-On (SSO) for Microsoft Entra ID authentication on macOS devices, enabling seamless authentication across Microsoft services and applications.",
+                    "platform": "macOS",
+                    "category": "Authentication",
+                    "technology": "mdm,appleRemoteManagement",
+                    "filePath": "configurations/entra/entra-psso.json",
+                    "settingCount": "15"
+                },
+                {
+                    "name": "Passcode Policy (DDM)",
+                    "description": "Enforces passcode requirements for macOS devices including minimum length, complexity, failed attempt limits, and expiration policies to ensure device security compliance.",
+                    "platform": "macOS",
+                    "category": "Security",
+                    "technology": "mdm,appleRemoteManagement",
+                    "filePath": "configurations/intune/ddm-passcode.json",
+                    "settingCount": "12"
+                },
+                {
+                    "name": "Passcode Policy (DDM) - Template",
+                    "description": "Template passcode policy for macOS devices with DDM (Declarative Device Management) enforcement including minimum length, complexity, and security requirements.",
+                    "platform": "macOS",
+                    "category": "Security",
+                    "technology": "mdm,appleRemoteManagement",
+                    "filePath": "configurations/intune/_ddm-passcode.json",
+                    "settingCount": "12",
+                    "isTemplate": "true"
+                },
+                {
+                    "name": "Enable FileVault in Setup Assistant",
+                    "description": "Configures FileVault disk encryption on macOS devices during Setup Assistant with recovery key escrow to Microsoft Endpoint Manager for enterprise data protection.",
+                    "platform": "macOS",
+                    "category": "Encryption",
+                    "technology": "mdm,appleRemoteManagement",
+                    "filePath": "configurations/intune/filevault.json",
+                    "settingCount": "12"
+                }
+            ]
+        }
+    }
+}
