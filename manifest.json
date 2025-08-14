@@ -49,10 +49,10 @@
       "category": "Config",
       "filePath": "scripts/intune/install-company-portal.zsh",
       "requiresElevation": true,
-      "runAsSignedInUser": false,
-      "hideNotifications": true,
-      "frequency": "",
-      "maxRetries": 3
+      "runAsAccount": "system",
+      "blockExecutionNotifications": true,
+      "executionFrequency": "PT0S",
+      "retryCount": 3
     },
     {
       "type": "Script",
@@ -62,10 +62,10 @@
       "category": "Config",
       "filePath": "scripts/intune/device-rename.sh",
       "requiresElevation": true,
-      "runAsSignedInUser": false,
-      "hideNotifications": true,
-      "frequency": "",
-      "maxRetries": 3
+      "runAsAccount": "system",
+      "blockExecutionNotifications": true,
+      "executionFrequency": "PT0S",
+      "retryCount": 3
     },
     {
       "type": "Script",
@@ -75,10 +75,10 @@
       "category": "Config",
       "filePath": "scripts/intune/configure-dock.sh",
       "requiresElevation": true,
-      "runAsSignedInUser": false,
-      "hideNotifications": true,
-      "frequency": "",
-      "maxRetries": 3
+      "runAsAccount": "system",
+      "blockExecutionNotifications": true,
+      "executionFrequency": "PT0S",
+      "retryCount": 3
     },
     {
       "type": "Script",
@@ -88,10 +88,10 @@
       "category": "Security",
       "filePath": "scripts/intune/install-escrow-buddy.sh",
       "requiresElevation": true,
-      "runAsSignedInUser": false,
-      "hideNotifications": true,
-      "frequency": "",
-      "maxRetries": 3
+      "runAsAccount": "system",
+      "blockExecutionNotifications": true,
+      "executionFrequency": "PT0S",
+      "retryCount": 3
     }
   ]
 }
