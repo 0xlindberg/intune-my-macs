@@ -15,9 +15,9 @@ https://learn.microsoft.com/powershell/microsoftgraph/app-only?view=graph-powers
 #>
 
 # Choose what to run
-$importPolicies = $false
-$importPackages = $false
-$importScripts = $false
+$importPolicies = $true
+$importPackages = $true
+$importScripts = $true
 
 # set policy prefix
 $policyPrefix = "[CK-import] "
