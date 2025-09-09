@@ -1,0 +1,9 @@
+<MacIntuneManifest>
+  <Type>Policy</Type>
+  <Name>Managed Login Items</Name>
+  <Description>Configures managed login items for specified vendor agents (Palo Alto, Microsoft) via ServiceManagement rules.</Description>
+  <Platform>macOS</Platform>
+  <Category>Config</Category>
+  <SourceFile>configurations/intune/Managed Login Items.json</SourceFile>
+  <SettingsCount>1</SettingsCount>
+</MacIntuneManifest>

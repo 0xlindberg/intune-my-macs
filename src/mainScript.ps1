@@ -20,15 +20,17 @@ $importPolicies   = $true
 $importPackages   = $true
 $importScripts    = $true
 $importCompliance = $true  # new: compliance policies
+$includeMde       = $false # include mde/ folder content only if --mde specified
 
 # Initialize created object trackers per run
 $createdPolicyIds = @()
+$createdDeviceConfigIds = @()  # classic deviceConfigurations (e.g., macOSCustomConfiguration)
 $createdComplianceIds = @()
 $createdScriptIds = @()
 $createdAppIds = @()
 
 # set policy prefix
-$policyPrefix = "[intune-my-mac] "
+$policyPrefix = "[intune-my-macs] "
 
 # connect to Graph (add apps scope + groups for assignments)
 Connect-MgGraph -Scopes "DeviceManagementConfiguration.ReadWrite.All,DeviceManagementApps.ReadWrite.All,Group.Read.All" -NoWelcome
@@ -45,7 +47,7 @@ if (-not $repoRoot) { Write-Error "Failed to resolve repository root; aborting."
 #   --prefix=VALUE          : Name prefix for all created objects
 #   --remove-all            : Delete existing prefixed policies/scripts/apps
 #   --assign-group="Name"   : Assign newly created objects to specified Entra group (required intent for apps)
-#   --apps / --policies / --scripts : Scope the import to specific object types
+#   --apps / --config / --scripts : Scope the import to specific object types
 
 
 function Get-DistributedManifests {
@@ -143,17 +145,34 @@ function Test-DistributedManifest {
         switch ($item.type) {
             'Policy' {
                 foreach ($req in 'name','filePath') {
-                    if (-not $item.$req) { Write-Warning ("Policy missing {0}: {1}" -f $req, ($item | ConvertTo-Json -Compress)); $errors++ }
+                    if (-not $item.$req) { Write-Host ("Policy missing {0}: {1}" -f $req, ($item | ConvertTo-Json -Compress)) -ForegroundColor Red; $errors++ }
                 }
             }
             'Script' {
                 foreach ($req in 'name','filePath','runAsAccount','blockExecutionNotifications','executionFrequency','retryCount') {
-                    if ($null -eq $item.$req -or ($item.$req -is [string] -and [string]::IsNullOrWhiteSpace($item.$req))) { Write-Warning ("Script missing {0}: {1}" -f $req, $item.name); $errors++ }
+                    if ($null -eq $item.$req -or ($item.$req -is [string] -and [string]::IsNullOrWhiteSpace($item.$req))) { Write-Host ("Script missing {0}: {1}" -f $req, $item.name) -ForegroundColor Red; $errors++ }
                 }
             }
             'Package' {
                 foreach ($req in 'name','filePath','primaryBundleId','primaryBundleVersion','publisher','minimumSupportedOperatingSystem','ignoreVersionDetection') {
-                    if (-not $item.$req) { Write-Warning ("Package missing {0}: {1}" -f $req, $item.name); $errors++ }
+                    if (-not $item.$req) { Write-Host ("Package missing {0}: {1}" -f $req, $item.name) -ForegroundColor Red; $errors++ }
+                }
+                foreach ($opt in 'preInstallScript','postInstallScript') {
+                    if ($item.PSObject.Properties.Name -contains $opt -and $item.$opt) {
+                        $candidate = Join-Path $repoRoot $item.$opt
+                        if (-not (Test-Path -LiteralPath $candidate)) {
+                            Write-Warning ("Package '{0}' references missing {1} file: {2}" -f $item.name, $opt, $item.$opt)
+                        }
+                    }
+                }
+            }
+            'CustomConfig' {
+                foreach ($req in 'name','filePath') {
+                    if (-not $item.$req) { Write-Host ("CustomConfig missing {0}: {1}" -f $req, $item.name) -ForegroundColor Red; $errors++ }
+                }
+                if ($item.filePath) {
+                    $full = Join-Path $repoRoot $item.filePath
+                    if (-not (Test-Path -LiteralPath $full)) { Write-Warning ("CustomConfig file missing: {0}" -f $item.filePath) }
                 }
             }
         }
@@ -190,13 +209,14 @@ $assignGroupName = $null
 $argsLower = $args | ForEach-Object { $_.ToLowerInvariant() }
 if ($argsLower.Count -gt 0) {
     $importPolicies = $false; $importPackages = $false; $importScripts = $false; $importCompliance = $false
-    if ($argsLower -contains '--apps' -or $argsLower -contains '--packages') { $importPackages = $true }
-    if ($argsLower -contains '--config' -or $argsLower -contains '--policies') { $importPolicies = $true }
+    if ($argsLower -contains '--apps') { $importPackages = $true }
+    if ($argsLower -contains '--config') { $importPolicies = $true }
     if ($argsLower -contains '--compliance') { $importCompliance = $true }
-    if ($argsLower -contains '--scripts') { $importScripts = $true }
+    if ($argsLower -contains '--scripts' ) { $importScripts = $true }
     $showAllScripts = $false
     if ($argsLower -contains '--show-all-scripts') { $showAllScripts = $true }
     if ($argsLower -contains '--remove-all') { $removeAll = $true }
+    if ($argsLower -contains '--mde' -or $argsLower -contains '-mde') { $includeMde = $true }
     # Support custom prefix via --prefix="Value "
     foreach ($arg in $args) {
         if ($arg -like '--prefix=*') {
@@ -208,11 +228,11 @@ if ($argsLower.Count -gt 0) {
         }
     }
     if (-not ($importPolicies -or $importPackages -or $importScripts -or $importCompliance)) {
-        Write-Warning "No valid selector provided (--apps/--packages, --config/--policies, --scripts). Defaulting to all."
+    Write-Warning "No valid selector provided (--apps, --config, --scripts). Defaulting to all."
         $importPolicies = $true; $importPackages = $true; $importScripts = $true; $importCompliance = $true
         $showAllScripts = $true
     } else {
-        Write-Host ("Selection: configPolicies={0} compliance={1} packages={2} scripts={3} showAllScripts={4}" -f $importPolicies, $importCompliance, $importPackages, $importScripts, $showAllScripts) -ForegroundColor Cyan
+        Write-Host ("Selection: configPolicies={0} compliance={1} packages={2} scripts={3} showAllScripts={4} includeMde={5}" -f $importPolicies, $importCompliance, $importPackages, $importScripts, $showAllScripts, $includeMde) -ForegroundColor Cyan
     }
 }
 
@@ -221,14 +241,15 @@ function Remove-IntunePrefixedContent {
         [string]$Prefix
     )
     if (-not $Prefix) { Write-Error "Prefix is empty; refusing to continue."; return }
-    Write-Host "Scanning Intune for policies, compliance policies, scripts, and apps beginning with prefix: '$Prefix'" -ForegroundColor Cyan
+    Write-Host "Scanning Intune for policies, custom configs (mobileconfig), compliance policies, scripts, and apps beginning with prefix: '$Prefix'" -ForegroundColor Cyan
 
-    $escapedFilterPolicies    = [System.Uri]::EscapeDataString("startsWith(name,'$Prefix')")
-    $escapedFilterCompliance  = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
-    $escapedFilterScripts     = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
-    $escapedFilterApps        = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
+    $escapedFilterPolicies       = [System.Uri]::EscapeDataString("startsWith(name,'$Prefix')")
+    $escapedFilterCompliance     = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
+    $escapedFilterScripts        = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
+    $escapedFilterApps           = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
+    $escapedFilterDeviceConfigs  = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
 
-    $policies = @(); $compliancePolicies = @(); $scripts = @(); $apps = @()
+    $policies = @(); $customConfigs = @(); $compliancePolicies = @(); $scripts = @(); $apps = @()
     try { $policies = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$filter=$escapedFilterPolicies&`$select=id,name").value } catch { Write-Warning "Failed to query configuration policies: $($_.Exception.Message)" }
     try {
         # Some Graph endpoints for compliance policies may reject startsWith filter (400). Try filtered first.
@@ -244,14 +265,38 @@ function Remove-IntunePrefixedContent {
             Write-Warning "Fallback compliance policies query failed: $($_.Exception.Message)"
         }
     }
+    # macOS custom configuration (mobileconfig) live under deviceConfigurations with type macOSCustomConfiguration
+    try {
+        $dcUrl = "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations?`$filter=$escapedFilterDeviceConfigs"
+        $raw = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri $dcUrl
+        if ($resp.value) { $raw += $resp.value }
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            if ($resp.value) { $raw += $resp.value }
+        }
+        if ($raw) {
+            # Some responses may omit @odata.type if not selected; also detect via payload-related properties
+            $customConfigs = $raw | Where-Object { ($_.displayName -and $_.displayName.StartsWith($Prefix)) -and ( $_.'@odata.type' -eq '#microsoft.graph.macOSCustomConfiguration' -or $_.PSObject.Properties.Name -contains 'payload' -or $_.PSObject.Properties.Name -contains 'payloadName') }
+        }
+    } catch {
+        Write-Warning "Primary query for custom configs failed: $($_.Exception.Message) - attempting broad fallback"
+        try {
+            $raw = @(); $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations"
+            if ($resp.value) { $raw += $resp.value }
+            while ($resp.'@odata.nextLink') { $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'; if ($resp.value) { $raw += $resp.value } }
+            if ($raw) { $customConfigs = $raw | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) -and ( $_.'@odata.type' -eq '#microsoft.graph.macOSCustomConfiguration' -or $_.PSObject.Properties.Name -contains 'payload' -or $_.PSObject.Properties.Name -contains 'payloadName') } }
+        } catch { Write-Warning "Fallback deviceConfigurations query failed: $($_.Exception.Message)" }
+    }
     try { $scripts  = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts?`$filter=$escapedFilterScripts&`$select=id,displayName").value } catch { Write-Warning "Failed to query device shell scripts: $($_.Exception.Message)" }
     try { $apps     = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=$escapedFilterApps&`$select=id,displayName").value } catch { Write-Warning "Failed to query mobile apps: $($_.Exception.Message)" }
 
     $pCount = ($policies | Measure-Object).Count
+    $xCount = ($customConfigs | Measure-Object).Count
     $cCount = ($compliancePolicies | Measure-Object).Count
     $sCount = ($scripts  | Measure-Object).Count
     $aCount = ($apps     | Measure-Object).Count
-    if (($pCount + $cCount + $sCount + $aCount) -eq 0) {
+    if (($pCount + $xCount + $cCount + $sCount + $aCount) -eq 0) {
         Write-Host "No Intune objects found with prefix '$Prefix'. Nothing to remove." -ForegroundColor Yellow
         return
     }
@@ -260,6 +305,10 @@ function Remove-IntunePrefixedContent {
     if ($pCount -gt 0) {
         Write-Host "Policies ($pCount):" -ForegroundColor Magenta
         $policies | ForEach-Object { Write-Host "  • $($_.name)  [$($_.id)]" }
+    }
+    if ($xCount -gt 0) {
+        Write-Host "Custom Configs ($xCount):" -ForegroundColor Magenta
+        $customConfigs | ForEach-Object { Write-Host "  • $($_.displayName)  [$($_.id)]" }
     }
     if ($cCount -gt 0) {
         Write-Host "Compliance Policies ($cCount):" -ForegroundColor Magenta
@@ -274,7 +323,7 @@ function Remove-IntunePrefixedContent {
         $apps | ForEach-Object { Write-Host "  • $($_.displayName)  [$($_.id)]" }
     }
 
-    Write-Host "Summary: $pCount config policies, $cCount compliance policies, $sCount scripts, $aCount apps will be permanently removed." -ForegroundColor Cyan
+    Write-Host "Summary: $pCount config policies, $xCount custom configs, $cCount compliance policies, $sCount scripts, $aCount apps will be permanently removed." -ForegroundColor Cyan
     $confirmation = Read-Host -Prompt "Type YES to confirm deletion or anything else to cancel"
     if ($confirmation -ne 'YES') { Write-Host "Deletion aborted by user." -ForegroundColor Yellow; return }
 
@@ -284,6 +333,13 @@ function Remove-IntunePrefixedContent {
             Invoke-MgGraphRequest -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($p.id)" | Out-Null
             Write-Host "Deleted policy: $($p.name)" -ForegroundColor Green
         } catch { Write-Warning "Failed to delete policy $($p.name): $($_.Exception.Message)" }
+    }
+    # Delete custom configs (deviceConfigurations)
+    foreach ($cc in $customConfigs) {
+        try {
+            Invoke-MgGraphRequest -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$($cc.id)" | Out-Null
+            Write-Host "Deleted custom config: $($cc.displayName)" -ForegroundColor Green
+        } catch { Write-Warning "Failed to delete custom config $($cc.displayName): $($_.Exception.Message)" }
     }
     # Delete compliance policies
     foreach ($cp in $compliancePolicies) {
@@ -326,6 +382,21 @@ function Get-GroupIdByName {
 }
 
 $distributedItems = Get-DistributedManifests -BasePath $repoRoot
+
+# Always exclude 'exports/' folder content (output artifacts) regardless of switches
+$preExportsCount = $distributedItems.Count
+$distributedItems = $distributedItems | Where-Object { $_.filePath -notmatch '(^|/)exports/' }
+$exportsRemoved = $preExportsCount - $distributedItems.Count
+if ($exportsRemoved -gt 0) { Write-Host "Excluded $exportsRemoved manifest item(s) under exports/." -ForegroundColor DarkGray }
+
+if (-not $includeMde) {
+    $pre = $distributedItems.Count
+    $distributedItems = $distributedItems | Where-Object { $_.filePath -notmatch '(^|/)mde/' }
+    $removed = $pre - $distributedItems.Count
+    if ($removed -gt 0) { Write-Host "Excluded $removed mde/ manifest(s) (use --mde to include)." -ForegroundColor DarkGray }
+} else {
+    Write-Host "Including mde/ manifests (--mde specified)." -ForegroundColor DarkGray
+}
 
 if ($distributedItems.type -contains '' -or $distributedItems.type -contains $null) { Write-Error "One or more XML manifests invalid (missing Type)."; exit 1 }
 Write-Host "Using distributed XML manifests ($($distributedItems.Count) items)." -ForegroundColor Cyan
@@ -895,7 +966,7 @@ if ($importCompliance) {
         Write-Host "• $($c.name)" -ForegroundColor Yellow
         Write-Host "  - Path: $($c.filePath) [$status]"
         if ($desc) { Write-Host "  - Desc: $desc" }
-        if (-not $exists) { Write-Warning "Compliance JSON missing, skipping."; Write-Host ''; continue }
+    if (-not $exists) { Write-Host "Compliance JSON missing, skipping." -ForegroundColor Red; Write-Host ''; continue }
         try {
             $json = Get-Content -LiteralPath $compPath -Raw | ConvertFrom-Json -Depth 15
             # Ensure required scheduledActionsForRule exists (Graph requires exactly one block action)
@@ -963,7 +1034,7 @@ if ($importScripts) {
         Write-Host "  - blockExecutionNotifications: $($s.blockExecutionNotifications)"
         Write-Host "  - executionFrequency: $($s.executionFrequency)"
         Write-Host "  - retryCount: $($s.retryCount)"
-        if (-not $exists) { Write-Warning "Script file missing, skipping upload."; Write-Host ''; continue }
+    if (-not $exists) { Write-Host "Script file missing, skipping upload." -ForegroundColor Red; Write-Host ''; continue }
         try {
             $scriptContent = Get-Content -LiteralPath $scriptPath -Raw
             $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($scriptContent))
@@ -1048,6 +1119,12 @@ if ($importPackages) {
         # add preinstall script if needed
         if ($a.preinstallscript) {
             $preinstallScript = Join-Path $repoRoot $a.preinstallscript
+            if (-not (Test-Path -LiteralPath $preinstallScript)) {
+                Write-Warning "Pre-install script path not found: $($a.preinstallscript) (resolved: $preinstallScript). Will skip embedding."
+                $preinstallScript = $null
+            } else {
+                Write-Host "  - Using pre-install script: $($a.preinstallscript)" -ForegroundColor DarkCyan
+            }
         } else {
             $preinstallScript = $null
         }
@@ -1055,12 +1132,18 @@ if ($importPackages) {
         # add postInstall script if needed
         if ($a.postInstallScript) {
             $postInstallScript = Join-Path $repoRoot $a.postInstallScript
+            if (-not (Test-Path -LiteralPath $postInstallScript)) {
+                Write-Warning "Post-install script path not found: $($a.postInstallScript) (resolved: $postInstallScript). Will skip embedding."
+                $postInstallScript = $null
+            } else {
+                Write-Host "  - Using post-install script: $($a.postInstallScript)" -ForegroundColor DarkCyan
+            }
         } else {
             $postInstallScript = $null
         }
 
-    if (-not $exists) { Write-Warning "Package source file missing, skipping upload."; continue }
-    if (-not (Test-BetaModule)) { Write-Warning "Required beta Graph module missing; skipping package upload."; continue }
+    if (-not $exists) { Write-Host "Package source file missing, skipping upload." -ForegroundColor Red; continue }
+    if (-not (Test-BetaModule)) { Write-Host "Required beta Graph module missing; skipping package upload." -ForegroundColor Red; continue }
     $appResult = Invoke-macOSLobAppUpload -SourceFile $assetPath `
             -displayName "$($displayName)" -Publisher "$($a.publisher)" -Description "$($desc)" `
             -primaryBundleId "$($a.primaryBundleId)" -primaryBundleVersion "$($a.primaryBundleVersion)" `
@@ -1071,6 +1154,51 @@ if ($importPackages) {
 
     }
 
+}
+
+# Enumerate custom macOS configuration profiles (mobileconfig)
+if ($importPolicies) {
+    $customConfigs = $distributedItems | Where-Object { $_.type -eq 'CustomConfig' }
+    if ($customConfigs.Count -gt 0) {
+        Write-Host "Found $($customConfigs.Count) custom macOS configuration profile(s):`n" -ForegroundColor Cyan
+        foreach ($cc in $customConfigs) {
+            $ccPath = Join-Path $repoRoot $cc.filePath
+            $exists = Test-Path -LiteralPath $ccPath
+            $status = if ($exists) { 'OK' } else { 'MISSING' }
+            Write-Host "• $($cc.name)" -ForegroundColor Yellow
+            Write-Host "  - Path: $($cc.filePath) [$status]"
+            if ($cc.description) { Write-Host "  - Desc: $($cc.description)" }
+            if (-not $exists) { Write-Host "  - Skipping (file missing)." -ForegroundColor Red; Write-Host ''; continue }
+            try {
+                $raw = [System.IO.File]::ReadAllBytes($ccPath)
+                $b64 = [Convert]::ToBase64String($raw)
+                $displayName = $policyPrefix + $cc.name
+                $payloadFileName = [IO.Path]::GetFileName($cc.filePath)
+                $payloadName = $payloadFileName
+                $bodyHash = @{ 
+                    '@odata.type'    = '#microsoft.graph.macOSCustomConfiguration'
+                    displayName      = $displayName
+                    description      = $cc.description
+                    payload          = $b64
+                    payloadName      = $payloadName
+                    payloadFileName  = $payloadFileName
+                }
+                $body = $bodyHash | ConvertTo-Json -Depth 6
+                $resp = Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations' -Body $body
+                if ($resp -and $resp.id) {
+                    Write-Host "  - Custom configuration imported with ID: $($resp.id)" -ForegroundColor Green
+                    $createdDeviceConfigIds += $resp.id
+                } else {
+                    Write-Warning "  - Import returned no ID"
+                }
+            } catch {
+                $errMsg = $_.Exception.Message
+                if ($_.ErrorDetails -and $_.ErrorDetails.Message) { $errMsg = $_.ErrorDetails.Message }
+                Write-Error "Failed to import custom configuration '$($cc.name)': $errMsg"
+            }
+            Write-Host ''
+        }
+    }
 }
 
 # Perform assignments if requested
@@ -1088,6 +1216,15 @@ if ($assignGroupName) {
         Write-Host "Assigned policy $policyId to group" -ForegroundColor Green
         } catch { Write-Warning "Failed to assign policy ${policyId}: $($_.Exception.Message)" }
         }
+
+    # Assign classic custom configurations (deviceConfigurations)
+    foreach ($devCfgId in ($createdDeviceConfigIds | Sort-Object -Unique)) {
+        try {
+            $assignBody = @{ assignments = @(@{ target = @{ '@odata.type' = '#microsoft.graph.groupAssignmentTarget'; groupId = $groupId } }) } | ConvertTo-Json -Depth 6
+            Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$devCfgId/assign" -Body $assignBody | Out-Null
+            Write-Host "Assigned custom config $devCfgId to group" -ForegroundColor Green
+        } catch { Write-Warning "Failed to assign custom config ${devCfgId}: $($_.Exception.Message)" }
+    }
 
     # Assign Compliance Policies (deviceCompliancePolicies)
     foreach ($compId in ($createdComplianceIds | Sort-Object -Unique)) {

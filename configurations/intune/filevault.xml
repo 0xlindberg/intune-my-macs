@@ -1,6 +1,6 @@
 <MacIntuneManifest>
   <Type>Policy</Type>
-  <Name>FileVault Encryption</Name>
+  <Name>00 - FileVault Encryption</Name>
   <Description>Configures FileVault disk encryption on macOS devices during Setup Assistant with recovery key escrow.</Description>
   <Platform>macOS</Platform>
   <Category>Security</Category>
