@@ -16,11 +16,12 @@ https://learn.microsoft.com/powershell/microsoftgraph/app-only?view=graph-powers
 #>
 
 # Choose what to run
-$importPolicies   = $true
-$importPackages   = $true
-$importScripts    = $true
-$importCompliance = $true  # new: compliance policies
-$includeMde       = $false # include mde/ folder content only if --mde specified
+$importPolicies     = $true
+$importPackages     = $true
+$importScripts      = $true
+$importCompliance   = $true  # new: compliance policies
+$importCustomAttrs  = $true  # new: custom attributes
+$includeMde         = $false # include mde/ folder content only if --mde specified
 
 # Initialize created object trackers per run
 $createdPolicyIds = @()
@@ -28,12 +29,13 @@ $createdDeviceConfigIds = @()  # classic deviceConfigurations (e.g., macOSCustom
 $createdComplianceIds = @()
 $createdScriptIds = @()
 $createdAppIds = @()
+$createdCustomAttrIds = @()  # custom attributes
 
 # set policy prefix
 $policyPrefix = "[intune-my-macs] "
 
-# connect to Graph (add apps scope + groups for assignments)
-Connect-MgGraph -Scopes "DeviceManagementConfiguration.ReadWrite.All,DeviceManagementApps.ReadWrite.All,Group.Read.All" -NoWelcome
+# connect to Graph (add apps scope + groups for assignments + scripts for shell scripts)
+Connect-MgGraph -Scopes "DeviceManagementConfiguration.ReadWrite.All,DeviceManagementApps.ReadWrite.All,DeviceManagementScripts.ReadWrite.All,Group.Read.All" -NoWelcome
 
 # Resolve repo root, if we cannot resolve we should exit (script is in src/)
 $repoRoot = $PSScriptRoot
@@ -118,6 +120,13 @@ function Get-DistributedManifests {
                     if ($retry) { $obj | Add-Member retryCount ([int]$retry) -Force }
                 }
             }
+            'CustomAttribute' {
+        $customAttrNode = $xmlRoot.Element('CustomAttribute')
+                if ($customAttrNode) {
+                    $customAttrType = ($customAttrNode.Element('CustomAttributeType'))?.Value
+                    if ($customAttrType) { $obj | Add-Member customAttributeType $customAttrType -Force }
+                }
+            }
             'Package' {
         $pkgNode = $xmlRoot.Element('Package')
                 if ($pkgNode) {
@@ -166,6 +175,15 @@ function Test-DistributedManifest {
                     }
                 }
             }
+            'CustomAttribute' {
+                foreach ($req in 'name','filePath','customAttributeType') {
+                    if (-not $item.$req) { Write-Host ("CustomAttribute missing {0}: {1}" -f $req, $item.name) -ForegroundColor Red; $errors++ }
+                }
+                if ($item.filePath) {
+                    $full = Join-Path $repoRoot $item.filePath
+                    if (-not (Test-Path -LiteralPath $full)) { Write-Warning ("CustomAttribute file missing: {0}" -f $item.filePath) }
+                }
+            }
             'CustomConfig' {
                 foreach ($req in 'name','filePath') {
                     if (-not $item.$req) { Write-Host ("CustomConfig missing {0}: {1}" -f $req, $item.name) -ForegroundColor Red; $errors++ }
@@ -208,11 +226,12 @@ $removeAll = $false
 $assignGroupName = $null
 $argsLower = $args | ForEach-Object { $_.ToLowerInvariant() }
 if ($argsLower.Count -gt 0) {
-    $importPolicies = $false; $importPackages = $false; $importScripts = $false; $importCompliance = $false
+    $importPolicies = $false; $importPackages = $false; $importScripts = $false; $importCompliance = $false; $importCustomAttrs = $false
     if ($argsLower -contains '--apps') { $importPackages = $true }
     if ($argsLower -contains '--config') { $importPolicies = $true }
     if ($argsLower -contains '--compliance') { $importCompliance = $true }
     if ($argsLower -contains '--scripts' ) { $importScripts = $true }
+    if ($argsLower -contains '--custom-attributes') { $importCustomAttrs = $true }
     $showAllScripts = $false
     if ($argsLower -contains '--show-all-scripts') { $showAllScripts = $true }
     if ($argsLower -contains '--remove-all') { $removeAll = $true }
@@ -227,12 +246,12 @@ if ($argsLower.Count -gt 0) {
             $assignGroupName = $arg.Substring(15).Trim('"')
         }
     }
-    if (-not ($importPolicies -or $importPackages -or $importScripts -or $importCompliance)) {
-    Write-Warning "No valid selector provided (--apps, --config, --scripts). Defaulting to all."
-        $importPolicies = $true; $importPackages = $true; $importScripts = $true; $importCompliance = $true
+    if (-not ($importPolicies -or $importPackages -or $importScripts -or $importCompliance -or $importCustomAttrs)) {
+    Write-Warning "No valid selector provided (--apps, --config, --scripts, --custom-attributes). Defaulting to all."
+        $importPolicies = $true; $importPackages = $true; $importScripts = $true; $importCompliance = $true; $importCustomAttrs = $true
         $showAllScripts = $true
     } else {
-        Write-Host ("Selection: configPolicies={0} compliance={1} packages={2} scripts={3} showAllScripts={4} includeMde={5}" -f $importPolicies, $importCompliance, $importPackages, $importScripts, $showAllScripts, $includeMde) -ForegroundColor Cyan
+        Write-Host ("Selection: configPolicies={0} compliance={1} packages={2} scripts={3} customAttributes={4} showAllScripts={5} includeMde={6}" -f $importPolicies, $importCompliance, $importPackages, $importScripts, $importCustomAttrs, $showAllScripts, $includeMde) -ForegroundColor Cyan
     }
 }
 
@@ -241,15 +260,16 @@ function Remove-IntunePrefixedContent {
         [string]$Prefix
     )
     if (-not $Prefix) { Write-Error "Prefix is empty; refusing to continue."; return }
-    Write-Host "Scanning Intune for policies, custom configs (mobileconfig), compliance policies, scripts, and apps beginning with prefix: '$Prefix'" -ForegroundColor Cyan
+    Write-Host "Scanning Intune for policies, custom configs (mobileconfig), compliance policies, scripts, custom attributes, and apps beginning with prefix: '$Prefix'" -ForegroundColor Cyan
 
     $escapedFilterPolicies       = [System.Uri]::EscapeDataString("startsWith(name,'$Prefix')")
     $escapedFilterCompliance     = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
     $escapedFilterScripts        = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
+    $escapedFilterCustomAttrs    = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
     $escapedFilterApps           = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
     $escapedFilterDeviceConfigs  = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
 
-    $policies = @(); $customConfigs = @(); $compliancePolicies = @(); $scripts = @(); $apps = @()
+    $policies = @(); $customConfigs = @(); $compliancePolicies = @(); $scripts = @(); $customAttrs = @(); $apps = @()
     try { $policies = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$filter=$escapedFilterPolicies&`$select=id,name").value } catch { Write-Warning "Failed to query configuration policies: $($_.Exception.Message)" }
     try {
         # Some Graph endpoints for compliance policies may reject startsWith filter (400). Try filtered first.
@@ -289,14 +309,16 @@ function Remove-IntunePrefixedContent {
         } catch { Write-Warning "Fallback deviceConfigurations query failed: $($_.Exception.Message)" }
     }
     try { $scripts  = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts?`$filter=$escapedFilterScripts&`$select=id,displayName").value } catch { Write-Warning "Failed to query device shell scripts: $($_.Exception.Message)" }
+    try { $customAttrs = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts?`$filter=$escapedFilterCustomAttrs&`$select=id,displayName").value } catch { Write-Warning "Failed to query custom attribute shell scripts: $($_.Exception.Message)" }
     try { $apps     = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=$escapedFilterApps&`$select=id,displayName").value } catch { Write-Warning "Failed to query mobile apps: $($_.Exception.Message)" }
 
     $pCount = ($policies | Measure-Object).Count
     $xCount = ($customConfigs | Measure-Object).Count
     $cCount = ($compliancePolicies | Measure-Object).Count
     $sCount = ($scripts  | Measure-Object).Count
+    $caCount = ($customAttrs | Measure-Object).Count
     $aCount = ($apps     | Measure-Object).Count
-    if (($pCount + $xCount + $cCount + $sCount + $aCount) -eq 0) {
+    if (($pCount + $xCount + $cCount + $sCount + $caCount + $aCount) -eq 0) {
         Write-Host "No Intune objects found with prefix '$Prefix'. Nothing to remove." -ForegroundColor Yellow
         return
     }
@@ -318,12 +340,16 @@ function Remove-IntunePrefixedContent {
         Write-Host "Scripts ($sCount):" -ForegroundColor Magenta
         $scripts | ForEach-Object { Write-Host "  • $($_.displayName)  [$($_.id)]" }
     }
+    if ($caCount -gt 0) {
+        Write-Host "Custom Attributes ($caCount):" -ForegroundColor Magenta
+        $customAttrs | ForEach-Object { Write-Host "  • $($_.displayName)  [$($_.id)]" }
+    }
     if ($aCount -gt 0) {
         Write-Host "Apps ($aCount):" -ForegroundColor Magenta
         $apps | ForEach-Object { Write-Host "  • $($_.displayName)  [$($_.id)]" }
     }
 
-    Write-Host "Summary: $pCount config policies, $xCount custom configs, $cCount compliance policies, $sCount scripts, $aCount apps will be permanently removed." -ForegroundColor Cyan
+    Write-Host "Summary: $pCount config policies, $xCount custom configs, $cCount compliance policies, $sCount scripts, $caCount custom attributes, $aCount apps will be permanently removed." -ForegroundColor Cyan
     $confirmation = Read-Host -Prompt "Type YES to confirm deletion or anything else to cancel"
     if ($confirmation -ne 'YES') { Write-Host "Deletion aborted by user." -ForegroundColor Yellow; return }
 
@@ -353,6 +379,12 @@ function Remove-IntunePrefixedContent {
             Invoke-MgGraphRequest -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts/$($s.id)" | Out-Null
             Write-Host "Deleted script: $($s.displayName)" -ForegroundColor Green
         } catch { Write-Warning "Failed to delete script $($s.displayName): $($_.Exception.Message)" }
+    }
+    foreach ($ca in $customAttrs) {
+        try {
+            Invoke-MgGraphRequest -Method DELETE -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts/$($ca.id)" | Out-Null
+            Write-Host "Deleted custom attribute: $($ca.displayName)" -ForegroundColor Green
+        } catch { Write-Warning "Failed to delete custom attribute $($ca.displayName): $($_.Exception.Message)" }
     }
     foreach ($a in $apps) {
         try {
@@ -1066,6 +1098,53 @@ if ($importScripts) {
     # Removed legacy verification block for simplicity
 }
 
+# Enumerate custom attributes
+if ($importCustomAttrs) {
+    $createdCustomAttrIds = @()
+    $customAttributes = $distributedItems | Where-Object { $_.type -eq 'CustomAttribute' }
+    Write-Host "Found $($customAttributes.Count) custom attributes:`n" -ForegroundColor Cyan
+    foreach ($ca in $customAttributes) {
+        $scriptPath = Join-Path $repoRoot $ca.filePath
+        $exists = Test-Path -LiteralPath $scriptPath
+        $status = if ($exists) { 'OK' } else { 'MISSING' }
+        $desc = $ca.description
+        if ($null -ne $desc -and $desc.Length -gt 140) { $desc = $desc.Substring(0,137)+'...' }
+        Write-Host "• $($ca.name)" -ForegroundColor Yellow
+        Write-Host "  - Category: $($ca.category); Platform: $($ca.platform)"
+        Write-Host "  - Path: $($ca.filePath) [$status]"
+        if ($desc) { Write-Host "  - Desc: $desc" }
+        Write-Host "  - customAttributeType: $($ca.customAttributeType)"
+    if (-not $exists) { Write-Host "Custom attribute script file missing, skipping upload." -ForegroundColor Red; Write-Host ''; continue }
+        try {
+            $scriptContent = Get-Content -LiteralPath $scriptPath -Raw
+            $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($scriptContent))
+            $displayName = $policyPrefix + $ca.name
+            $fileName = [IO.Path]::GetFileName($scriptPath)
+            
+            # Use deviceCustomAttributeShellScripts for macOS custom attributes
+            $body = @{ 
+                displayName = $displayName
+                description = $ca.description
+                scriptContent = $encoded
+                fileName = $fileName
+                runAsAccount = 'system'  # Custom attributes always run as system
+                customAttributeType = $ca.customAttributeType
+            }
+            $json = $body | ConvertTo-Json -Depth 5
+            $result = Invoke-MgGraphRequest -Method POST -Uri 'https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts' -Body $json
+            if ($result -and $result.id) { 
+                Write-Host "  - Custom attribute $($result.displayName) imported with ID: $($result.id)" -ForegroundColor Green 
+                $createdCustomAttrIds += $result.id
+            } else { 
+                Write-Host "  - Custom attribute import failed (no ID)" -ForegroundColor Red 
+            }
+        } catch {
+            Write-Error "Failed to import custom attribute '$($ca.name)': $_"
+        }
+        Write-Host ""
+    }
+}
+
 # Enumerate packages/apps
 if ($importPackages) {
     $createdAppIds = @()
@@ -1243,6 +1322,31 @@ if ($assignGroupName) {
         Write-Host "Assigned script $scriptId to group" -ForegroundColor Green
         } catch { Write-Warning "Failed to assign script ${scriptId}: $($_.Exception.Message)" }
         }
+
+    # Assign Custom Attributes only if custom attributes were imported this run
+    if ($importCustomAttrs -and $createdCustomAttrIds.Count -gt 0) {
+        foreach ($customAttrId in ($createdCustomAttrIds | Sort-Object -Unique)) {
+                try {
+                    # Try the same format as regular scripts for custom attributes
+                    $assignBody = @{ deviceManagementScriptGroupAssignments = @(); deviceManagementScriptAssignments = @(@{ target = @{ '@odata.type' = '#microsoft.graph.groupAssignmentTarget'; groupId = $groupId } }) } | ConvertTo-Json -Depth 6
+                    if ($env:IMM_DEBUG -eq '1') { Write-Host "DEBUG: Custom attribute assignment body: $assignBody" -ForegroundColor DarkCyan }
+            Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts/$customAttrId/assign" -Body $assignBody | Out-Null
+            Write-Host "Assigned custom attribute $customAttrId to group" -ForegroundColor Green
+            } catch { 
+                Write-Warning "Failed to assign custom attribute ${customAttrId}: $($_.Exception.Message)"
+                if ($_.Exception.Response) {
+                    try {
+                        $errorDetails = $_.Exception.Response.Content.ReadAsStringAsync().Result
+                        Write-Host "Error details: $errorDetails" -ForegroundColor Red
+                    } catch {
+                        Write-Host "Could not read error response details" -ForegroundColor Red
+                    }
+                }
+            }
+            }
+    } else {
+        Write-Host "Skipping custom attribute assignments (no custom attributes imported)." -ForegroundColor DarkGray
+    }
 
         # Assign Apps only if packages were imported this run
         if ($importPackages -and $createdAppIds.Count -gt 0) {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+    <file>GuestAccountSecurityConfiguration.json</file>
+    <type>configuration-policy</type>
+    <name>Guest Account Security Configuration</name>
+    <description>Disables guest account access to enhance security on managed macOS devices. Guest accounts can bypass security policies and provide unauthorized access to the system, making this configuration essential for enterprise security.</description>
+    <priority>10</priority>
+    <notes>
+        Setting configured:
+        - DisableGuestAccount: true (prevents guest account login)
+        
+        This addresses the Mac Evaluation Utility warning about unmanaged guest account settings by explicitly disabling guest account access, which is a security best practice for managed devices.
+    </notes>
+</manifest>
