@@ -262,6 +262,7 @@ function Remove-IntunePrefixedContent {
     if (-not $Prefix) { Write-Error "Prefix is empty; refusing to continue."; return }
     Write-Host "Scanning Intune for policies, custom configs (mobileconfig), compliance policies, scripts, custom attributes, and apps beginning with prefix: '$Prefix'" -ForegroundColor Cyan
 
+    # Build OData filter strings - the entire filter expression gets URL encoded
     $escapedFilterPolicies       = [System.Uri]::EscapeDataString("startsWith(name,'$Prefix')")
     $escapedFilterCompliance     = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
     $escapedFilterScripts        = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
@@ -270,20 +271,41 @@ function Remove-IntunePrefixedContent {
     $escapedFilterDeviceConfigs  = [System.Uri]::EscapeDataString("startsWith(displayName,'$Prefix')")
 
     $policies = @(); $customConfigs = @(); $compliancePolicies = @(); $scripts = @(); $customAttrs = @(); $apps = @()
-    try { $policies = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$filter=$escapedFilterPolicies&`$select=id,name").value } catch { Write-Warning "Failed to query configuration policies: $($_.Exception.Message)" }
+    
+    # Configuration Policies - always use client-side filtering for reliability with special characters
     try {
-        # Some Graph endpoints for compliance policies may reject startsWith filter (400). Try filtered first.
-        $compliancePolicies = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies?`$filter=$escapedFilterCompliance&`$select=id,displayName").value
-    } catch {
-        Write-Warning "Failed to query compliance policies with server-side filter (will fallback to client filtering): $($_.Exception.Message)"
-        try {
-            $allCompliance = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies?`$select=id,displayName").value
-            if ($allCompliance) {
-                $compliancePolicies = $allCompliance | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) }
-            }
-        } catch {
-            Write-Warning "Fallback compliance policies query failed: $($_.Exception.Message)"
+        $allPolicies = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies?`$select=id,name"
+        $allPolicies += $resp.value
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            $allPolicies += $resp.value
         }
+        if ($env:IMM_DEBUG -eq '1') {
+            Write-Host "DEBUG: Retrieved $($allPolicies.Count) total policies for client-side filtering" -ForegroundColor DarkCyan
+            Write-Host "DEBUG: Looking for prefix: '$Prefix' (length: $($Prefix.Length))" -ForegroundColor DarkCyan
+        }
+        if ($allPolicies) {
+            $policies = $allPolicies | Where-Object { $_.name -and $_.name.StartsWith($Prefix) }
+            if ($env:IMM_DEBUG -eq '1') { Write-Host "DEBUG: Client-side filter matched $($policies.Count) policies with prefix '$Prefix'" -ForegroundColor DarkCyan }
+        }
+    } catch {
+        Write-Warning "Failed to query configuration policies: $($_.Exception.Message)"
+    }
+    # Compliance Policies - use client-side filtering with pagination
+    try {
+        $allCompliance = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCompliancePolicies?`$select=id,displayName"
+        $allCompliance += $resp.value
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            $allCompliance += $resp.value
+        }
+        if ($allCompliance) {
+            $compliancePolicies = $allCompliance | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) }
+        }
+    } catch {
+        Write-Warning "Failed to query compliance policies: $($_.Exception.Message)"
     }
     # macOS custom configuration (mobileconfig) live under deviceConfigurations with type macOSCustomConfiguration
     try {
@@ -308,9 +330,42 @@ function Remove-IntunePrefixedContent {
             if ($raw) { $customConfigs = $raw | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) -and ( $_.'@odata.type' -eq '#microsoft.graph.macOSCustomConfiguration' -or $_.PSObject.Properties.Name -contains 'payload' -or $_.PSObject.Properties.Name -contains 'payloadName') } }
         } catch { Write-Warning "Fallback deviceConfigurations query failed: $($_.Exception.Message)" }
     }
-    try { $scripts  = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts?`$filter=$escapedFilterScripts&`$select=id,displayName").value } catch { Write-Warning "Failed to query device shell scripts: $($_.Exception.Message)" }
-    try { $customAttrs = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts?`$filter=$escapedFilterCustomAttrs&`$select=id,displayName").value } catch { Write-Warning "Failed to query custom attribute shell scripts: $($_.Exception.Message)" }
-    try { $apps     = (Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$filter=$escapedFilterApps&`$select=id,displayName").value } catch { Write-Warning "Failed to query mobile apps: $($_.Exception.Message)" }
+    
+    # Scripts - use client-side filtering with pagination
+    try {
+        $allScripts = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceShellScripts?`$select=id,displayName"
+        $allScripts += $resp.value
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            $allScripts += $resp.value
+        }
+        if ($allScripts) { $scripts = $allScripts | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) } }
+    } catch { Write-Warning "Failed to query scripts: $($_.Exception.Message)" }
+    
+    # Custom Attributes - use client-side filtering with pagination
+    try {
+        $allCustomAttrs = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceCustomAttributeShellScripts?`$select=id,displayName"
+        $allCustomAttrs += $resp.value
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            $allCustomAttrs += $resp.value
+        }
+        if ($allCustomAttrs) { $customAttrs = $allCustomAttrs | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) } }
+    } catch { Write-Warning "Failed to query custom attributes: $($_.Exception.Message)" }
+    
+    # Apps - use client-side filtering with pagination
+    try {
+        $allApps = @()
+        $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps?`$select=id,displayName"
+        $allApps += $resp.value
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            $allApps += $resp.value
+        }
+        if ($allApps) { $apps = $allApps | Where-Object { $_.displayName -and $_.displayName.StartsWith($Prefix) } }
+    } catch { Write-Warning "Failed to query apps: $($_.Exception.Message)" }
 
     $pCount = ($policies | Measure-Object).Count
     $xCount = ($customConfigs | Measure-Object).Count
@@ -404,12 +459,16 @@ function Get-GroupIdByName {
     param([Parameter(Mandatory)][string]$DisplayName)
     try {
         $filter = [System.Uri]::EscapeDataString("displayName eq '$DisplayName'")
+        $groupResults = @()
         $resp = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/groups?`$filter=$filter&`$select=id,displayName"
-    $groupResults = @()
-    if ($resp.value) { $groupResults = $resp.value }
-    if ($groupResults.Count -eq 0) { Write-Error "Group not found: $DisplayName"; return $null }
-    if ($groupResults.Count -gt 1) { Write-Warning "Multiple groups matched '$DisplayName'; using first." }
-    return $groupResults[0].id
+        if ($resp.value) { $groupResults += $resp.value }
+        while ($resp.'@odata.nextLink') {
+            $resp = Invoke-MgGraphRequest -Method GET -Uri $resp.'@odata.nextLink'
+            if ($resp.value) { $groupResults += $resp.value }
+        }
+        if ($groupResults.Count -eq 0) { Write-Error "Group not found: $DisplayName"; return $null }
+        if ($groupResults.Count -gt 1) { Write-Warning "Multiple groups matched '$DisplayName'; using first." }
+        return $groupResults[0].id
     } catch { Write-Error "Failed to resolve group '$DisplayName': $($_.Exception.Message)"; return $null }
 }
 
@@ -964,7 +1023,8 @@ if ($importPolicies) {
                 } else {
                     $policyContent.name = $p.name
                 }
-            $policyContentJson = ConvertTo-Json -InputObject $policyContent -Depth 20
+
+                $policyContentJson = ConvertTo-Json -InputObject $policyContent -Depth 20
 
             # create policy with json content
             $policyImportResults = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies" -Body $policyContentJson
