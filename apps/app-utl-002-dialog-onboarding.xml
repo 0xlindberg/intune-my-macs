@@ -3,7 +3,7 @@
   <Version>1.0</Version>
   <Type>Package</Type>
   <Name>APP-UTL-002 - Swift Dialog Onboarding</Name>
-  <Description>Installs Swift Dialog onboarding splash screen and triggers core app installs.</Description>
+  <Description>Displays an interactive Swift Dialog onboarding splash screen showing real-time progress while automatically installing essential Microsoft applications: Company Portal, Office 365, Microsoft Edge, Microsoft 365 Copilot, and Windows App. Pre-install script waits for Swift Dialog binary availability (20 min timeout), and post-install script executes bundled installation scripts in parallel for each application.</Description>
   <Platform>macOS</Platform>
   <Category>Config</Category>
   <SourceFile>apps/app-utl-002-dialog-onboarding.pkg</SourceFile>

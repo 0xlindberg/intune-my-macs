@@ -79,7 +79,7 @@ Click any reference ID to jump to detailed configuration.
 
 ### app-utl-001-swift-dialog (Package)
 
-Installs Swift Dialog package which is a dependency for our onboarding process.
+Installs Swift Dialog v2.5.6, a native macOS application for displaying rich, interactive dialogs. This is a required dependency for the visual onboarding experience that provides users with real-time progress feedback during device provisioning and application installation.
 
 **Source:** `apps/app-utl-001-swift-dialog.pkg`  
 **Settings:** 5
@@ -95,7 +95,7 @@ Installs Swift Dialog package which is a dependency for our onboarding process.
 
 ### app-utl-002-dialog-onboarding (Package)
 
-Installs Swift Dialog onboarding splash screen and triggers core app installs.
+Displays an interactive Swift Dialog onboarding splash screen showing real-time progress while automatically installing essential Microsoft applications: Company Portal, Office 365, Microsoft Edge, Microsoft 365 Copilot, and Windows App. Pre-install script waits for Swift Dialog binary availability (20 min timeout), and post-install script executes bundled installation scripts in parallel for each application.
 
 **Source:** `apps/app-utl-002-dialog-onboarding.pkg`  
 **Settings:** 7
@@ -651,7 +651,7 @@ Enforces passcode requirements including length, complexity, failed attempts, an
 
 ### scr-app-100-install-company-portal (Script)
 
-Install Microsoft Company Portal via signed PKG; ensures MAU and Rosetta.
+Downloads and installs Microsoft Company Portal from a signed PKG. Automatically installs Microsoft Auto Update (MAU) first and ensures Rosetta 2 is present on Apple Silicon. Performs intelligent update checking via HTTP Last-Modified headers to avoid unnecessary reinstalls.
 
 **Source:** `scripts/intune/scr-app-100-install-company-portal.sh`  
 **Settings:** 4
@@ -666,7 +666,7 @@ Install Microsoft Company Portal via signed PKG; ensures MAU and Rosetta.
 
 ### scr-app-101-office-defaults (Script)
 
-Set Microsoft Office apps as default handlers for common document types.
+Configures Microsoft Office applications (Word, Excel, PowerPoint, Outlook) as the default handlers for all Office-related document types and URL schemes. Automatically installs utiluti v1.1 if not present and runs associations in the current user context via launchctl.
 
 **Source:** `scripts/intune/scr-app-101-office-defaults.sh`  
 **Settings:** 4
@@ -696,7 +696,7 @@ Install Microsoft Defender for Endpoint (PKG); waits for core Microsoft apps, en
 
 ### scr-sec-100-install-escrow-buddy (Script)
 
-Install latest Escrow Buddy and remediate missing FileVault escrow.
+Downloads and installs the latest release of Escrow Buddy security agent plugin from GitHub. Ensures FileVault recovery keys are properly escrowed to Intune by configuring the authorization database and triggering escrow at login when the FDE profile and PRK file are present.
 
 **Source:** `scripts/intune/scr-sec-100-install-escrow-buddy.sh`  
 **Settings:** 4
@@ -711,7 +711,7 @@ Install latest Escrow Buddy and remediate missing FileVault escrow.
 
 ### scr-sys-100-device-rename (Script)
 
-Renames the Mac based on country code and serial number.
+Automatically renames Mac devices using a standardized naming convention based on enrollment type (ADE/BYOD), device model type (MBA/MBP/iMac/etc), serial number, and detected country code via IP geolocation. Differentiates between corporate (ABM-enrolled) and personal (manually-enrolled) devices with configurable prefixes.
 
 **Source:** `scripts/intune/scr-sys-100-device-rename.sh`  
 **Settings:** 4
@@ -726,7 +726,7 @@ Renames the Mac based on country code and serial number.
 
 ### scr-sys-101-configure-dock (Script)
 
-Configure Dock items after app installs; supports swiftDialog.
+Configures the macOS Dock with a standardized set of Microsoft 365 and system applications. Optionally waits for applications to be installed before configuration. Supports both dockutil and native plist manipulation methods. Integrates with Swift Dialog for deployment progress visualization and adapts to macOS versions (Apps.app vs Launchpad).
 
 **Source:** `scripts/intune/scr-sys-101-configure-dock.sh`  
 **Settings:** 4
