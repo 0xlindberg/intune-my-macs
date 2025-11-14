@@ -4,7 +4,7 @@
 
 **Generated:** November 14, 2025
 
-**Total Artifacts:** 30
+**Total Artifacts:** 31
 
 ```{=openxml}
 <w:p><w:r><w:br w:type="page"/></w:r></w:p>
@@ -42,6 +42,7 @@ Click any reference ID to jump to detailed configuration.
 | [app-utl-001-swift-dialog](#app-utl-001-swift-dialog-package) | Package | 5 |
 | [app-utl-002-dialog-onboarding](#app-utl-002-dialog-onboarding-package) | Package | 7 |
 | [cat-sys-100-compatibility-checker](#cat-sys-100-compatibility-checker-customattribute) | CustomAttribute | 1 |
+| [cat-sys-101-intune-agent-version](#cat-sys-101-intune-agent-version-customattribute) | CustomAttribute | 1 |
 | [cfg-idp-001-platform-sso](#cfg-idp-001-platform-sso-policy) | Policy | 18 |
 | [cfg-sec-001-login-window](#cfg-sec-001-login-window-customconfig) | CustomConfig | 4 |
 | [cfg-sec-002-screensaver-idle](#cfg-sec-002-screensaver-idle-customconfig) | CustomConfig | 1 |
@@ -115,6 +116,18 @@ Displays an interactive Swift Dialog onboarding splash screen showing real-time 
 Determines the maximum supported macOS version for the current Mac by querying Apple's GDMF API with the hardware's board ID. Works with both Intel and Apple Silicon Macs to provide compatibility information for macOS upgrades.
 
 **Source:** `custom attributes/cat-sys-100-compatibility-checker.zsh`  
+**Settings:** 1
+
+| Key | Value |
+|-----|-------|
+| `CustomAttributeType` | `string` |
+
+
+### cat-sys-101-intune-agent-version (CustomAttribute)
+
+Returns the version of the Microsoft Intune Agent (Sidecar) installed on the Mac by reading the CFBundleShortVersionString from the agent's Info.plist. Returns "not installed" if the agent is not present.
+
+**Source:** `custom attributes/cat-sys-101-intune-agent-version.sh`  
 **Settings:** 1
 
 | Key | Value |

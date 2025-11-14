@@ -37,7 +37,7 @@ pwsh ./mainScript.ps1 --assign-group "Intune Mac Pilot"
 |------|---------|
 | `--apps`, `--config`, `--compliance`, `--scripts`, `--custom-attributes` | Limit the import scope to specific artifact types |
 | `--assign-group "Name"` | Assign every created object to an Entra group |
-| `--prefix "[custom] "` | Override the default naming prefix |
+| `--prefix "[custom]"` | Override the default naming prefix |
 | `--mde` | Include the `mde/` content (requires onboarding file) |
 | `--remove-all` | Delete previously created objects that use the current prefix |
 
@@ -46,9 +46,9 @@ pwsh ./mainScript.ps1 --assign-group "Intune Mac Pilot"
 ## What gets deployed
 - **Security & configuration policies:** FileVault, Firewall, Gatekeeper, guest restrictions, login window, screen saver, managed login items, NTP, Office, Declarative Device Management, and more.
 - **Compliance & scripts:** macOS compliance policy, enrollment restrictions, device scripts (Company Portal install, Dock customization, Escrow Buddy, etc.).
-- **Applications:** Swift Dialog, onboarding packages, compatibility checker, plus any apps you add via XML manifests.
-- **Custom attributes:** Hardware compatibility checks and other inventory helpers.
-- **Optional MDE:** Defender installer, settings catalog, onboarding profile (see `mde/README.md`).
+- **Applications:** [Swift Dialog](https://github.com/swiftDialog/swiftDialog), Office 365, Teams, M365 Copilot, [Intune Log Watch](https://github.com/gilburns/IntuneLogWatch).
+- **Custom attributes:** Hardware compatibility checks and other helpers.
+- **Optional MDE:** Defender installer (see `mde/README.md`).
 
 For the full artifact catalog and settings, see `INTUNE-MY-MACS-DOCUMENTATION.md` or generate a fresh Word doc with `tools/Generate-ConfigurationDocumentation.py`.
 
