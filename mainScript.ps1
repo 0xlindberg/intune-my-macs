@@ -281,17 +281,45 @@ if ($argsLower.Count -gt 0) {
     if ($argsLower -contains '--remove-all') { $removeAll = $true }
     if ($argsLower -contains '--mde' -or $argsLower -contains '-mde') { $includeMde = $true }
     if ($argsLower -contains '--security-baseline' -or $argsLower -contains '-security-baseline') { $includeSecurityBaseline = $true }
-    # Support custom prefix via --prefix="Value "
-    foreach ($arg in $args) {
+    # Support both --param="Value" and --param "Value" forms
+    for ($i = 0; $i -lt $args.Count; $i++) {
+        $arg = $args[$i]
+
+        # --prefix
         if ($arg -like '--prefix=*') {
-            $policyPrefix = $arg.Substring(9)
+            $value = $arg.Substring(9)
+        } elseif ($arg -eq '--prefix' -and ($i + 1) -lt $args.Count) {
+            $value = $args[$i + 1]
+        } else {
+            $value = $null
+        }
+        if ($null -ne $value) {
+            $policyPrefix = $value.Trim('"')
             if ($policyPrefix -and ($policyPrefix[-1] -ne ' ')) { $policyPrefix += ' ' }
         }
+
+        # --assign-group
         if ($arg -like '--assign-group=*') {
-            $assignGroupName = $arg.Substring(15).Trim('"')
+            $value = $arg.Substring(15)
+        } elseif ($arg -eq '--assign-group' -and ($i + 1) -lt $args.Count) {
+            $value = $args[$i + 1]
+        } else {
+            $value = $null
         }
+        if ($null -ne $value) {
+            $assignGroupName = $value.Trim('"')
+        }
+
+        # --tenant-id
         if ($arg -like '--tenant-id=*') {
-            $tenantId = $arg.Substring(12).Trim('"')
+            $value = $arg.Substring(12)
+        } elseif ($arg -eq '--tenant-id' -and ($i + 1) -lt $args.Count) {
+            $value = $args[$i + 1]
+        } else {
+            $value = $null
+        }
+        if ($null -ne $value) {
+            $tenantId = $value.Trim('"')
         }
     }
     if (-not ($importPolicies -or $importPackages -or $importScripts -or $importCompliance -or $importCustomAttrs)) {

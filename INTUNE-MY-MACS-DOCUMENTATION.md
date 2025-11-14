@@ -2,9 +2,9 @@
 
 ## Configuration Documentation
 
-**Generated:** October 23, 2025
+**Generated:** November 14, 2025
 
-**Total Artifacts:** 31
+**Total Artifacts:** 30
 
 ```{=openxml}
 <w:p><w:r><w:br w:type="page"/></w:r></w:p>
@@ -41,11 +41,8 @@ Click any reference ID to jump to detailed configuration.
 |-----|------|----------------|
 | [app-utl-001-swift-dialog](#app-utl-001-swift-dialog-package) | Package | 5 |
 | [app-utl-002-dialog-onboarding](#app-utl-002-dialog-onboarding-package) | Package | 7 |
-| [app-utl-003-mac-evaluation](#app-utl-003-mac-evaluation-package) | Package | 7 |
-| [app-utl-004-log-watch](#app-utl-004-log-watch-package) | Package | 5 |
 | [cat-sys-100-compatibility-checker](#cat-sys-100-compatibility-checker-customattribute) | CustomAttribute | 1 |
 | [cfg-idp-001-platform-sso](#cfg-idp-001-platform-sso-policy) | Policy | 18 |
-| [cfg-mde-001-onboarding](#cfg-mde-001-onboarding-customconfig) | CustomConfig | 6 |
 | [cfg-sec-001-login-window](#cfg-sec-001-login-window-customconfig) | CustomConfig | 4 |
 | [cfg-sec-002-screensaver-idle](#cfg-sec-002-screensaver-idle-customconfig) | CustomConfig | 1 |
 | [cmp-cmp-001-macos-baseline](#cmp-cmp-001-macos-baseline-compliance) | Compliance | 12 |
@@ -66,6 +63,8 @@ Click any reference ID to jump to detailed configuration.
 | [pol-sys-105-enrollment-restriction](#pol-sys-105-enrollment-restriction-policy) | Policy | 6 |
 | [scr-app-100-install-company-portal](#scr-app-100-install-company-portal-script) | Script | 4 |
 | [scr-app-101-office-defaults](#scr-app-101-office-defaults-script) | Script | 4 |
+| [scr-app-102-install-remote-help](#scr-app-102-install-remote-help-script) | Script | 4 |
+| [scr-app-103-install-intunelogwatch](#scr-app-103-install-intunelogwatch-script) | Script | 4 |
 | [scr-mde-100-install-defender](#scr-mde-100-install-defender-script) | Script | 4 |
 | [scr-sec-100-install-escrow-buddy](#scr-sec-100-install-escrow-buddy-script) | Script | 4 |
 | [scr-sys-100-device-rename](#scr-sys-100-device-rename-script) | Script | 4 |
@@ -111,40 +110,6 @@ Displays an interactive Swift Dialog onboarding splash screen showing real-time 
 | `PostInstallScript` | `apps/app-utl-002-dialog-onboarding_post.sh` |
 
 
-### app-utl-003-mac-evaluation (Package)
-
-Installs the Mac Evaluation Utility for assessment and troubleshooting on managed macOS devices.
-
-**Source:** `apps/app-utl-003-mac-evaluation.pkg`  
-**Settings:** 7
-
-| Key | Value |
-|-----|-------|
-| `DisplayName` | `Mac Evaluation Utility` |
-| `FileName` | `MacEvaluationUtility.pkg` |
-| `PrimaryBundleId` | `com.apple.MacEvalUtility` |
-| `PrimaryBundleVersion` | `4.7.1` |
-| `Publisher` | `Apple` |
-| `MinimumSupportedOperatingSystem` | `v13_0` |
-| `IgnoreVersionDetection` | `true` |
-
-
-### app-utl-004-log-watch (Package)
-
-Provides a visual way to view and monitor the Intune Agent logs in real-time for troubleshooting and diagnostics.
-
-**Source:** `apps/app-utl-004-log-watch.pkg`  
-**Settings:** 5
-
-| Key | Value |
-|-----|-------|
-| `PrimaryBundleId` | `com.gilburns.IntuneLogWatch` |
-| `PrimaryBundleVersion` | `1.0` |
-| `Publisher` | `Gil Burns` |
-| `MinimumSupportedOperatingSystem` | `v13_0` |
-| `IgnoreVersionDetection` | `true` |
-
-
 ### cat-sys-100-compatibility-checker (CustomAttribute)
 
 Determines the maximum supported macOS version for the current Mac by querying Apple's GDMF API with the hardware's board ID. Works with both Intel and Apple Silicon Macs to provide compatibility information for macOS upgrades.
@@ -184,23 +149,6 @@ Platform Single Sign-On (SSO) configuration for Microsoft Entra ID on macOS.
 | `com.apple.extensiblesso_urls[4]` | `https://login.chinacloudapi.cn` |
 | `com.apple.extensiblesso_urls[5]` | `https://login.microsoftonline.us` |
 | `com.apple.extensiblesso_urls[6]` | `https://login-us.microsoftonline.com` |
-
-
-### cfg-mde-001-onboarding (CustomConfig)
-
-Onboards Microsoft Defender for Endpoint using a macOS custom configuration (mobileconfig) profile.
-
-**Source:** `mde/cfg-mde-001-onboarding.mobileconfig`  
-**Settings:** 6
-
-| Key | Value |
-|-----|-------|
-| `com.microsoft.wdav.atp.PayloadOrganization` | `Microsoft` |
-| `com.microsoft.wdav.atp.PayloadDescription` | `` |
-| `com.microsoft.wdav.atp.PayloadEnabled` | `True` |
-| `com.microsoft.wdav.atp.AllowUserOverrides` | `True` |
-| `com.microsoft.wdav.atp.OrgId` | `4513124b-b72f-4d00-8195-def59b04fe21` |
-| `com.microsoft.wdav.atp.OnboardingInfo` | `{"body":"{\"previousOrgIds\":[],\"orgId\":\"4513124b-b72f-4d00-8195-def59b04fe21\",\"geoLocationUrl\":\"https://edr-u...` |
 
 
 ### cfg-sec-001-login-window (CustomConfig)
@@ -669,6 +617,36 @@ Downloads and installs Microsoft Company Portal from a signed PKG. Automatically
 Configures Microsoft Office applications (Word, Excel, PowerPoint, Outlook) as the default handlers for all Office-related document types and URL schemes. Automatically installs utiluti v1.1 if not present and runs associations in the current user context via launchctl.
 
 **Source:** `scripts/intune/scr-app-101-office-defaults.sh`  
+**Settings:** 4
+
+| Key | Value |
+|-----|-------|
+| `RunAsAccount` | `system` |
+| `BlockExecutionNotifications` | `true` |
+| `ExecutionFrequency` | `PT0S` |
+| `RetryCount` | `3` |
+
+
+### scr-app-102-install-remote-help (Script)
+
+Downloads and installs Microsoft Remote Help from a signed PKG. Automatically installs Microsoft Auto Update (MAU) first and ensures Rosetta 2 is present on Apple Silicon. Performs intelligent update checking via HTTP Last-Modified headers to avoid unnecessary reinstalls. Enables IT support teams to provide remote assistance to macOS devices.
+
+**Source:** `scripts/intune/scr-app-102-install-remote-help.sh`  
+**Settings:** 4
+
+| Key | Value |
+|-----|-------|
+| `RunAsAccount` | `system` |
+| `BlockExecutionNotifications` | `true` |
+| `ExecutionFrequency` | `PT0S` |
+| `RetryCount` | `3` |
+
+
+### scr-app-103-install-intunelogwatch (Script)
+
+Downloads the latest Intune Log Watch DMG from GitHub, mounts it, and copies IntuneLogWatch.app into /Applications. Cleans up the DMG and mount point automatically.
+
+**Source:** `scripts/intune/scr-app-103-install-intunelogwatch.zsh`  
 **Settings:** 4
 
 | Key | Value |
