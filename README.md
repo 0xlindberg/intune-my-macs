@@ -20,7 +20,8 @@ winget install Microsoft.PowerShell
 
 > PowerShell modules (Microsoft Graph) are installed on demand the first time you run the script.
 
-### 2. Prepare your tenant
+### 2. Prepare your tenant.
+- **MDM Authority:** determines how you manage your devices (cannot be none). [Learn how](https://learn.microsoft.com/en-us/intune/intune-service/fundamentals/mdm-authority-set).
 - **APNS certificate:** Required for any macOS enrollment. [Learn how](https://learn.microsoft.com/mem/intune/enrollment/apple-mdm-push-certificate-get).
 - **Permissions:** Use an Intune Administrator (or equivalent) or grant `DeviceManagementConfiguration.ReadWrite.All`, `DeviceManagementApps.ReadWrite.All`, `DeviceManagementManagedDevices.ReadWrite.All`.
 - **Optional MDE:** Download your org-specific onboarding file before using `--mde` (see [`mde/README.md`](mde/README.md) for detailed steps).
