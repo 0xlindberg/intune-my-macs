@@ -1,10 +1,10 @@
-#!/bin/zsh
+#!/bin/bash
 #set -x
 
 ############################################################################################
 ## IMM - Install Company Portal (PKG)
 ##
-## Version: 1.0.0
+## Version: 1.1.0
 ## Maintainer: neiljohn@microsoft.com
 ##
 ## Summary
@@ -15,6 +15,7 @@
 ## - Otherwise performs an update check via HTTP Last-Modified and a local meta file, then installs/updates.
 ## - Optionally terminates running Company Portal process before install when configured.
 ## - Updates Octory status when Octory is installed and running.
+## - Implements automatic retry logic for download failures with detailed error diagnostics.
 ## - Detailed logging written to /Library/Logs/Microsoft/IntuneScripts/installCompanyPortal/Company Portal.log
 ##
 ## Inputs (variables)
@@ -33,7 +34,8 @@
 ##
 ## Exit codes
 ## - 0: Success (installed or no action required)
-## - 1: Failure (download/install error or unsupported package type)
+## - 1: Failure (unsupported package type)
+## - 6-56+: curl-specific error codes (DNS, network, SSL, timeout, etc.)
 ##
 ## Usage
 ## - Run as root via Intune device script or your management workflow.
@@ -82,7 +84,17 @@ updateMAU () {
 
     cd "$tempdir"
     curl -o "$tempdir/mau.pkg" -f -s --connect-timeout 30 --retry 5 --retry-delay 60 -L -J -O "$mauurl"
-    if [[ $? == 0 ]]; then
+    curlExitCode=$?
+    
+    # Retry once if curl failed
+    if [[ $curlExitCode != 0 ]]; then
+        echo "$(date) | First download attempt failed with exit code [$curlExitCode], retrying once more..."
+        sleep 5
+        curl -o "$tempdir/mau.pkg" -f -s --connect-timeout 30 --retry 5 --retry-delay 60 -L -J -O "$mauurl"
+        curlExitCode=$?
+    fi
+    
+    if [[ $curlExitCode == 0 ]]; then
         echo "$(date) | Downloaded [$mauurl] to [$tempdir/mau.pkg]"
         echo "$(date) | Starting installation of latest MAU"
         installer -pkg "$tempdir/mau.pkg" -target /
@@ -96,8 +108,18 @@ updateMAU () {
             rm -rf "$tempdir/mau.pkg"
         fi
     else
-        echo "$(date) | Failure to download [MAU]"
-        exit 1
+        echo "$(date) | Failed to download [MAU] from [$mauurl]"
+        echo "$(date) | curl exit code: [$curlExitCode]"
+        case $curlExitCode in
+            6)  echo "$(date) | Error: Could not resolve host. Check DNS settings." ;;
+            7)  echo "$(date) | Error: Failed to connect to host. Check network connectivity." ;;
+            28) echo "$(date) | Error: Operation timeout. Check network speed/stability." ;;
+            35) echo "$(date) | Error: SSL connect error. Check system date/time and certificates." ;;
+            56) echo "$(date) | Error: Failure receiving network data. Network connection was interrupted." ;;
+            *)  echo "$(date) | Error: curl failed with exit code $curlExitCode. Check network/proxy settings." ;;
+        esac
+        echo "$(date) | Troubleshooting: Verify network connectivity, proxy settings, and firewall rules."
+        exit $curlExitCode
     fi
 }
 
@@ -182,7 +204,17 @@ downloadApp () {
 
     cd "$tempdir"
     curl -f -s --connect-timeout 30 --retry 5 --retry-delay 60 --compressed -L -J -O "$weburl"
-    if [[ $? == 0 ]]; then
+    curlExitCode=$?
+    
+    # Retry once if curl failed
+    if [[ $curlExitCode != 0 ]]; then
+        echo "$(date) | First download attempt failed with exit code [$curlExitCode], retrying once more..."
+        sleep 5
+        curl -f -s --connect-timeout 30 --retry 5 --retry-delay 60 --compressed -L -J -O "$weburl"
+        curlExitCode=$?
+    fi
+    
+    if [[ $curlExitCode == 0 ]]; then
         for f in *; do
             tempfile=$f
             echo "$(date) | Found downloaded tempfile [$tempfile]"
@@ -199,9 +231,21 @@ downloadApp () {
         echo "$(date) | Downloaded [$app] to [$tempfile]"
         echo "$(date) | Detected install type as [$packageType]"
     else
-        echo "$(date) | Failure to download [$weburl]"
+        echo "$(date) | Failed to download [$appname] from [$weburl]"
+        echo "$(date) | curl exit code: [$curlExitCode]"
+        case $curlExitCode in
+            6)  echo "$(date) | Error: Could not resolve host. Check DNS settings." ;;
+            7)  echo "$(date) | Error: Failed to connect to host. Check network connectivity." ;;
+            22) echo "$(date) | Error: HTTP error (404/403). Check if download URL is valid." ;;
+            28) echo "$(date) | Error: Operation timeout. Check network speed/stability." ;;
+            35) echo "$(date) | Error: SSL connect error. Check system date/time and certificates." ;;
+            56) echo "$(date) | Error: Failure receiving network data. Network connection was interrupted." ;;
+            *)  echo "$(date) | Error: curl failed with exit code $curlExitCode. Check network/proxy settings." ;;
+        esac
+        echo "$(date) | Troubleshooting: Verify network connectivity, proxy settings, and firewall rules."
+        echo "$(date) | You can test manually with: curl -v \"$weburl\""
         updateOctory failed
-        exit 1
+        exit $curlExitCode
     fi
 }
 

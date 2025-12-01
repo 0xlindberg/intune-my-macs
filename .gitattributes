@@ -1,0 +1,28 @@
+# Enforce Unix line endings for shell scripts to ensure compatibility on macOS
+*.sh text eol=lf
+*.zsh text eol=lf
+
+# Windows scripts should use CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Declare files that should always be normalized and converted to LF on checkin
+*.json text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+
+# Configuration files
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.pkg binary
+*.dmg binary
