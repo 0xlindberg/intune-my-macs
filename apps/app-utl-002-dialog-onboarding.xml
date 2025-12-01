@@ -9,7 +9,7 @@
   <SourceFile>apps/app-utl-002-dialog-onboarding.pkg</SourceFile>
   <Package>
     <PrimaryBundleId>com.intune.swiftdialog</PrimaryBundleId>
-    <PrimaryBundleVersion>1.5</PrimaryBundleVersion>
+    <PrimaryBundleVersion>1.6</PrimaryBundleVersion>
     <Publisher>Microsoft</Publisher>
     <MinimumSupportedOperatingSystem>v13_0</MinimumSupportedOperatingSystem>
     <IgnoreVersionDetection>true</IgnoreVersionDetection>
