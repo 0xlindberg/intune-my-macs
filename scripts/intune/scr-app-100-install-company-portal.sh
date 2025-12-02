@@ -203,14 +203,14 @@ downloadApp () {
     echo "$(date) | Downloading $appname [$weburl]"
 
     cd "$tempdir"
-    curl -o "CompanyPortal-Installer.pkg" --connect-timeout 30 --retry 5 --retry-delay 60 -L "$weburl"
+    curl -o "CompanyPortal-Installer.pkg" --connect-timeout 30 --retry 5 --retry-delay 60 -L -J "$weburl"
     curlExitCode=$?
     
     # Retry once if curl failed
     if [[ $curlExitCode != 0 ]]; then
         echo "$(date) | First download attempt failed with exit code [$curlExitCode], retrying once more..."
         sleep 5
-        curl -o "CompanyPortal-Installer.pkg" --connect-timeout 30 --retry 5 --retry-delay 60 -L "$weburl"
+        curl -o "CompanyPortal-Installer.pkg" --connect-timeout 30 --retry 5 --retry-delay 60 -L -J "$weburl"
         curlExitCode=$?
     fi
     
