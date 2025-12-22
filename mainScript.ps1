@@ -197,13 +197,19 @@ function Test-BetaModule {
         [string]$ModuleName = 'Microsoft.Graph.Beta.Devices.CorporateManagement'
     )
     if (Get-Command -Name New-MgBetaDeviceAppManagementMobileApp -ErrorAction SilentlyContinue) { return $true }
+    
+    # Check if module is already loaded
+    if (Get-Module -Name $ModuleName) {
+        return $true
+    }
+    
     try {
-        Import-Module $ModuleName -ErrorAction Stop | Out-Null
+        Import-Module $ModuleName -ErrorAction Stop -SkipEditionCheck | Out-Null
     } catch {
         Write-Host "Installing beta Graph module '$ModuleName'..." -ForegroundColor Yellow
         try {
             Install-Module $ModuleName -Scope CurrentUser -Force -AllowClobber -ErrorAction Stop
-            Import-Module $ModuleName -ErrorAction Stop | Out-Null
+            Import-Module $ModuleName -ErrorAction Stop -SkipEditionCheck | Out-Null
         } catch {
             Write-Warning ("Failed to install/import {0}: {1}" -f $ModuleName, $_.Exception.Message)
             return $false
@@ -820,7 +826,7 @@ function Invoke-macOSLobAppUpload() {
         $AppCheckAttempts = 25
         while ($AppCheckAttempts -gt 0) {
             $AppCheckAttempts--
-            $AppStatus = Get-MgDeviceAppManagementMobileApp -MobileAppId $mobileAppId
+            $AppStatus = Get-MgBetaDeviceAppManagementMobileApp -MobileAppId $mobileAppId
             if ($AppStatus.PublishingState -eq "published") {
                 Write-Host "Application created successfully." -ForegroundColor Green
                 break
@@ -856,7 +862,7 @@ function Invoke-macOSLobAppUpload() {
         # Cleaning up temporary files and directories
         Remove-Item -Path "$tempFile" -Force -ErrorAction SilentlyContinue
     }
-    try { return (Get-MgDeviceAppManagementMobileApp -MobileAppId $mobileAppId) } catch { }
+    try { return (Get-MgBetaDeviceAppManagementMobileApp -MobileAppId $mobileAppId) } catch { }
 }
 
 ####################################################
