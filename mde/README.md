@@ -26,23 +26,18 @@ General prerequisites (PowerShell, APNS, permissions) are documented in the root
 ## 2. Get your onboarding payload
 
 1. Sign in to the [Microsoft Defender Portal](https://security.microsoft.com).
-2. Go to **Settings** > **Endpoints** > **Device management** > **Onboarding**.
+2. Go to **system** > **Settings** > **Endpoints** > **Device management** > **Onboarding**.
 3. Select **Operating system**: **macOS**.
 4. Select **Deployment method**: **Mobile Device Management / Microsoft Intune**.
 5. Download the onboarding package.
 
-You will get a file named similar to `WindowsDefenderATPOnboarding.mobileconfig`.
+You will get a file called `GatewayWindowsDefenderATPOnboardingPackage.zip` extract the archive and in the Intune folder rename the file `WindowsDefenderATPOnboarding.xml` to '`cfg-mde-001-onboarding.mobileconfig`.
 
-Rename and move it into the `mde/` folder:
-
-```bash
-mv ~/Downloads/WindowsDefenderATPOnboarding.mobileconfig \
-   /path/to/intune-my-macs/mde/cfg-mde-001-onboarding.mobileconfig
-```
+Copy `cfg-mde-001-onboarding.mobileconfig` into the `mde` folder of this project
 
 The onboarding file must be named exactly `cfg-mde-001-onboarding.mobileconfig`.
 
-> Security note: do not commit your real onboarding file into a public fork of this repo.
+> Security note: do not commit your onboarding file into a public fork of this repo.
 
 ---
 

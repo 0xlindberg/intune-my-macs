@@ -255,7 +255,6 @@ def generate_markdown(entries: List[Dict[str, Any]]) -> str:
     md.append("## Configuration Documentation\n\n")
     md.append(f"**Generated:** {today}\n\n")
     md.append(f"**Total Artifacts:** {len(entries)}\n\n")
-    md.append("```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```\n\n")
     
     # Page 2: Project Description (Standard font)
     md.append("# About Intune My Macs\n\n")
@@ -273,7 +272,6 @@ def generate_markdown(entries: List[Dict[str, Any]]) -> str:
     md.append("## About This Documentation\n\n")
     md.append("This document catalogs all configuration artifacts with complete settings details. ")
     md.append("Use the Index to quickly locate specific configurations, then refer to the detailed sections for complete settings breakdowns.\n\n")
-    md.append("```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```\n\n")
     
     # Page 3: Index with Summary Table
     md.append("# Index\n\n")
@@ -286,7 +284,7 @@ def generate_markdown(entries: List[Dict[str, Any]]) -> str:
     for e in entries:
         anchor = anchor_for(e['ref'], e['type'])
         md.append(f"| [{e['ref']}](#{anchor}) | {e['type']} | {e['count']} |\n")
-    md.append("\n```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```\n\n")
+    md.append("\n")
     
     md.append("# Detailed Configuration\n\n")
     for e in entries:
@@ -298,6 +296,37 @@ def generate_markdown(entries: List[Dict[str, Any]]) -> str:
         md.append(format_table(e['settings']))
         md.append("\n\n")
     return "".join(md)
+
+def add_page_breaks_for_docx(markdown: str) -> str:
+    """Add OpenXML page breaks to markdown for Word/pandoc conversion.
+    
+    These page breaks are only used when generating DOCX files and should
+    never appear in the committed markdown file.
+    """
+    PAGE_BREAK = "```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```\n\n"
+    
+    # Insert page break after "Total Artifacts" line (end of cover page)
+    markdown = re.sub(
+        r'(\*\*Total Artifacts:\*\* \d+\n\n)',
+        r'\1' + PAGE_BREAK,
+        markdown
+    )
+    
+    # Insert page break after "About This Documentation" section (before Index)
+    markdown = re.sub(
+        r'(Use the Index to quickly locate specific configurations, then refer to the detailed sections for complete settings breakdowns\.\n\n)',
+        r'\1' + PAGE_BREAK,
+        markdown
+    )
+    
+    # Insert page break after Index table (before Detailed Configuration)
+    markdown = re.sub(
+        r'(\| \[scr-sys-101-configure-dock\].*?\| Script \| \d+ \|\n\n)(# Detailed Configuration)',
+        r'\1' + PAGE_BREAK + r'\2',
+        markdown
+    )
+    
+    return markdown
 
 def markdown_to_docx(md_text: str, docx_path: pathlib.Path) -> None:
     """Very lightweight markdown to docx conversion focusing on headings, paragraphs, code spans and tables.
@@ -396,9 +425,15 @@ def markdown_to_docx(md_text: str, docx_path: pathlib.Path) -> None:
     document.save(str(docx_path))
     print(f"[INFO] Wrote DOCX to {docx_path}")
 
-def build_entries() -> List[Dict[str, Any]]:
+def build_entries(include_mde: bool = False) -> List[Dict[str, Any]]:
     json_files = gather_files(JSON_GLOB, suffix=".json")
     mc_files = gather_files(MOBILECONFIG_GLOB, suffix=".mobileconfig")
+    
+    # Filter out MDE folder unless --mde flag is passed
+    if not include_mde:
+        json_files = [f for f in json_files if not str(f).startswith(str(REPO_ROOT / "mde"))]
+        mc_files = [f for f in mc_files if not str(f).startswith(str(REPO_ROOT / "mde"))]
+    
     entries: List[Dict[str, Any]] = []
     # Helper: try to load manifest XML next to source file (same base name)
     def load_manifest_metadata(source_path: pathlib.Path) -> Dict[str, str]:
@@ -462,6 +497,11 @@ def build_entries() -> List[Dict[str, Any]]:
     # Add standalone manifests for Package, Script, CustomAttribute not covered above
     # We discover all XML manifests and include those whose SourceFile points to a .pkg/.sh/.zsh etc.
     xml_manifests = list(REPO_ROOT.rglob("*.xml"))
+    
+    # Filter out MDE folder unless include_mde is True
+    if not include_mde:
+        xml_manifests = [m for m in xml_manifests if not str(m).startswith(str(REPO_ROOT / "mde"))]
+    
     for mpath in xml_manifests:
         try:
             tree = ET.parse(mpath)
@@ -553,9 +593,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate payload documentation (Markdown + optional DOCX)")
     parser.add_argument("--docx", action="store_true", help="Also generate a DOCX file")
     parser.add_argument("--pandoc", action="store_true", help="Use pandoc for DOCX conversion (requires pandoc installed)")
+    parser.add_argument("--mde", action="store_true", help="Include MDE (Microsoft Defender for Endpoint) folder in documentation")
     args = parser.parse_args()
 
-    entries = build_entries()
+    entries = build_entries(include_mde=args.mde)
     markdown = generate_markdown(entries)
     OUTPUT_FILE.write_text(markdown, encoding="utf-8")
     print(f"[INFO] Wrote markdown to {OUTPUT_FILE}")
@@ -570,9 +611,11 @@ def main() -> None:
                 markdown_to_docx(markdown, DOCX_OUTPUT_FILE)
             else:
                 try:
+                    # Create markdown with page breaks for Word conversion
+                    markdown_with_breaks = add_page_breaks_for_docx(markdown)
                     # Write temp markdown file, run pandoc
                     with tempfile.NamedTemporaryFile(suffix='.md', delete=False) as tmp_md:
-                        tmp_md.write(markdown.encode('utf-8'))
+                        tmp_md.write(markdown_with_breaks.encode('utf-8'))
                         tmp_md_path = tmp_md.name
                     cmd = [pandoc_exe, '-f', 'markdown', tmp_md_path, '-o', str(DOCX_OUTPUT_FILE), '--standalone']
                     print(f"[INFO] Running pandoc: {' '.join(cmd)}")

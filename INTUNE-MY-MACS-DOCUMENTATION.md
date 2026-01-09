@@ -2,13 +2,9 @@
 
 ## Configuration Documentation
 
-**Generated:** November 14, 2025
+**Generated:** January 09, 2026
 
-**Total Artifacts:** 31
-
-```{=openxml}
-<w:p><w:r><w:br w:type="page"/></w:r></w:p>
-```
+**Total Artifacts:** 29
 
 # About Intune My Macs
 
@@ -29,10 +25,6 @@ This repository contains the following artifact types:
 
 This document catalogs all configuration artifacts with complete settings details. Use the Index to quickly locate specific configurations, then refer to the detailed sections for complete settings breakdowns.
 
-```{=openxml}
-<w:p><w:r><w:br w:type="page"/></w:r></w:p>
-```
-
 # Index
 
 Click any reference ID to jump to detailed configuration.
@@ -49,7 +41,6 @@ Click any reference ID to jump to detailed configuration.
 | [cmp-cmp-001-macos-baseline](#cmp-cmp-001-macos-baseline-compliance) | Compliance | 12 |
 | [pol-app-100-office](#pol-app-100-office-policy) | Policy | 15 |
 | [pol-app-101-edge-level1](#pol-app-101-edge-level1-policy) | Policy | 22 |
-| [pol-mde-001-settings-catalog](#pol-mde-001-settings-catalog-policy) | Policy | 60 |
 | [pol-sec-001-filevault](#pol-sec-001-filevault-policy) | Policy | 9 |
 | [pol-sec-002-firewall](#pol-sec-002-firewall-policy) | Policy | 2 |
 | [pol-sec-003-gatekeeper](#pol-sec-003-gatekeeper-policy) | Policy | 4 |
@@ -66,14 +57,9 @@ Click any reference ID to jump to detailed configuration.
 | [scr-app-101-office-defaults](#scr-app-101-office-defaults-script) | Script | 4 |
 | [scr-app-102-install-remote-help](#scr-app-102-install-remote-help-script) | Script | 4 |
 | [scr-app-103-install-intunelogwatch](#scr-app-103-install-intunelogwatch-script) | Script | 4 |
-| [scr-mde-100-install-defender](#scr-mde-100-install-defender-script) | Script | 4 |
 | [scr-sec-100-install-escrow-buddy](#scr-sec-100-install-escrow-buddy-script) | Script | 4 |
 | [scr-sys-100-device-rename](#scr-sys-100-device-rename-script) | Script | 4 |
 | [scr-sys-101-configure-dock](#scr-sys-101-configure-dock-script) | Script | 4 |
-
-```{=openxml}
-<w:p><w:r><w:br w:type="page"/></w:r></w:p>
-```
 
 # Detailed Configuration
 
@@ -103,7 +89,7 @@ Displays an interactive Swift Dialog onboarding splash screen showing real-time 
 | Key | Value |
 |-----|-------|
 | `PrimaryBundleId` | `com.intune.swiftdialog` |
-| `PrimaryBundleVersion` | `1.3` |
+| `PrimaryBundleVersion` | `1.6` |
 | `Publisher` | `Microsoft` |
 | `MinimumSupportedOperatingSystem` | `v13_0` |
 | `IgnoreVersionDetection` | `true` |
@@ -271,77 +257,6 @@ Enhanced basic browser configuration for Microsoft Edge addressing gap analysis 
 | `com.apple.managedclient.preferences_diagnosticdata` | `1` |
 | `com.apple.managedclient.preferences_showhomebutton` | `True` |
 | `com.apple.managedclient.preferences_updatepolicyoverride` | `0` |
-
-
-### pol-mde-001-settings-catalog (Policy)
-
-Combined Microsoft Defender for Endpoint settings catalog configuration for macOS.
-
-**Source:** `mde/pol-mde-001-settings-catalog.json`  
-**Settings:** 60
-
-| Key | Value |
-|-----|-------|
-| `com.apple.servicemanagement_rules_item_comment` | `com.microsoft.dlp` |
-| `com.apple.servicemanagement_rules_item_ruletype` | `0` |
-| `com.apple.servicemanagement_rules_item_rulevalue` | `com.microsoft.fresno` |
-| `com.apple.servicemanagement_rules_item_teamidentifier` | `UBF8T346G9` |
-| `com.apple.servicemanagement_rules_item_comment` | `com.microsoft.dlp` |
-| `com.apple.servicemanagement_rules_item_ruletype` | `0` |
-| `com.apple.servicemanagement_rules_item_rulevalue` | `com.microsoft.dlp` |
-| `com.apple.servicemanagement_rules_item_teamidentifier` | `UBF8T346G9` |
-| `com.apple.servicemanagement_rules_item_comment` | `com.microsoft.wdav` |
-| `com.apple.servicemanagement_rules_item_ruletype` | `0` |
-| `com.apple.servicemanagement_rules_item_rulevalue` | `com.microsoft.wdav` |
-| `com.apple.servicemanagement_rules_item_teamidentifier` | `UBF8T346G9` |
-| `com.apple.tcc.configuration-profile-policy_services_accessibility_item_authorization` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_accessibility_item_coderequirement` | `identifier "com.microsoft.dlp.daemon" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* e...` |
-| `com.apple.tcc.configuration-profile-policy_services_accessibility_item_identifier` | `com.microsoft.dlp.daemon` |
-| `com.apple.tcc.configuration-profile-policy_services_accessibility_item_identifiertype` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_accessibility_item_staticcode` | `False` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_authorization` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_coderequirement` | `identifier "com.microsoft.wdav" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists ...` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifier` | `com.microsoft.wdav` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifiertype` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_staticcode` | `False` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_authorization` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_coderequirement` | `identifier "com.microsoft.wdav.epsext" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* ...` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifier` | `com.microsoft.wdav.epsext` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifiertype` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_staticcode` | `False` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_authorization` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_coderequirement` | `identifier "com.microsoft.dlp.daemon" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* e...` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifier` | `com.microsoft.dlp.daemon` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_identifiertype` | `0` |
-| `com.apple.tcc.configuration-profile-policy_services_systempolicyallfiles_item_staticcode` | `False` |
-| `com.apple.system-extension-policy_allowuseroverrides` | `True` |
-| `com.apple.system-extension-policy_allowedsystemextensions_generickey[0]` | `com.microsoft.wdav.epsext` |
-| `com.apple.system-extension-policy_allowedsystemextensions_generickey[1]` | `com.microsoft.wdav.netext` |
-| `com.apple.system-extension-policy_allowedsystemextensions_generickey_keytobereplaced` | `UBF8T346G9` |
-| `com.apple.notificationsettings_notificationsettings_item_alerttype` | `2` |
-| `com.apple.notificationsettings_notificationsettings_item_badgesenabled` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_bundleidentifier` | `com.microsoft.autoupdate2` |
-| `com.apple.notificationsettings_notificationsettings_item_criticalalertenabled` | `False` |
-| `com.apple.notificationsettings_notificationsettings_item_notificationsenabled` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_showinlockscreen` | `False` |
-| `com.apple.notificationsettings_notificationsettings_item_showinnotificationcenter` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_soundsenabled` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_alerttype` | `1` |
-| `com.apple.notificationsettings_notificationsettings_item_badgesenabled` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_bundleidentifier` | `com.microsoft.wdav.tray` |
-| `com.apple.notificationsettings_notificationsettings_item_criticalalertenabled` | `False` |
-| `com.apple.notificationsettings_notificationsettings_item_notificationsenabled` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_showinlockscreen` | `False` |
-| `com.apple.notificationsettings_notificationsettings_item_showinnotificationcenter` | `True` |
-| `com.apple.notificationsettings_notificationsettings_item_soundsenabled` | `True` |
-| `com.apple.webcontent-filter_filterdataproviderbundleidentifier` | `com.microsoft.wdav.netext` |
-| `com.apple.webcontent-filter_filterdataproviderdesignatedrequirement` | `identifier "com.microsoft.wdav.netext" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* ...` |
-| `com.apple.webcontent-filter_filtergrade` | `1` |
-| `com.apple.webcontent-filter_filterpackets` | `False` |
-| `com.apple.webcontent-filter_filtersockets` | `True` |
-| `com.apple.webcontent-filter_filtertype` | `1` |
-| `com.apple.webcontent-filter_pluginbundleid` | `com.microsoft.wdav` |
-| `com.apple.webcontent-filter_userdefinedname` | `MDE Network Filter` |
 
 
 ### pol-sec-001-filevault (Policy)
@@ -660,21 +575,6 @@ Downloads and installs Microsoft Remote Help from a signed PKG. Automatically in
 Downloads the latest Intune Log Watch DMG from GitHub, mounts it, and copies IntuneLogWatch.app into /Applications. Cleans up the DMG and mount point automatically.
 
 **Source:** `scripts/intune/scr-app-103-install-intunelogwatch.zsh`  
-**Settings:** 4
-
-| Key | Value |
-|-----|-------|
-| `RunAsAccount` | `system` |
-| `BlockExecutionNotifications` | `true` |
-| `ExecutionFrequency` | `PT0S` |
-| `RetryCount` | `3` |
-
-
-### scr-mde-100-install-defender (Script)
-
-Install Microsoft Defender for Endpoint (PKG); waits for core Microsoft apps, ensures Rosetta, uses Last-Modified for update skip.
-
-**Source:** `mde/scr-mde-100-install-defender.zsh`  
 **Settings:** 4
 
 | Key | Value |
