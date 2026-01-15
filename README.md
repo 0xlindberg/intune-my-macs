@@ -1,4 +1,4 @@
-# 🚀 Intune My Macs
+# 🚀 Intune my Macs
 
 Automate a Microsoft Intune macOS proof-of-concept in minutes: policies, compliance, scripts, PKG apps, and optional Microsoft Defender for Endpoint (MDE) are deployed from a single script.
 
